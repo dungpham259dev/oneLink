@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -41,6 +42,12 @@ export function LinkList({ links, appUrl }: { links: Row[]; appUrl: string }) {
           </div>
           <Button variant="outline" size="sm" onClick={() => handleCopy(l.slug)}>
             Copy
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/app/links/${l.id}/qr`}>QR</Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/app/links/${l.id}/stats`}>Stats</Link>
           </Button>
           <Button
             variant="destructive"
