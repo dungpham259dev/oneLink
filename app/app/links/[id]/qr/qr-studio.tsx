@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { buildQrOptions } from "@/lib/qr-options";
 import type { QrConfigInput } from "@/lib/validation/qr";
@@ -44,29 +46,94 @@ export function QrStudio({ linkId, url, initial, isPro }: {
 
   return (
     <div className="grid gap-6 md:grid-cols-2">
-      <div ref={ref} className="flex items-center justify-center rounded border p-4" />
-      <div className="grid gap-3">
-        <label className="text-sm">Foreground
-          <Input type="color" value={cfg.fgColor} onChange={(e) => setCfg({ ...cfg, fgColor: e.target.value })} /></label>
-        <label className="text-sm">Background
-          <Input type="color" value={cfg.bgColor} onChange={(e) => setCfg({ ...cfg, bgColor: e.target.value })} /></label>
-        <label className="text-sm">Dot style
-          <select className="w-full rounded border p-2" value={cfg.dotStyle}
-            onChange={(e) => setCfg({ ...cfg, dotStyle: e.target.value as QrConfigInput["dotStyle"] })}>
-            <option value="square">Square</option><option value="rounded">Rounded</option><option value="dots">Dots</option>
-          </select></label>
-        {isPro && <label className="text-sm">Logo
-          <Input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && uploadLogo(e.target.files[0])} /></label>}
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => download("png", 300)}>PNG S</Button>
-          <Button variant="outline" onClick={() => download("png", 1024)}>PNG L</Button>
-          <Button variant="outline" onClick={() => download("svg")}>SVG</Button>
+      <div className="flex items-center justify-center rounded-2xl border bg-card p-8 shadow-sm">
+        <div ref={ref} />
+      </div>
+      <div className="grid content-start gap-5 rounded-2xl border bg-card p-6 shadow-sm">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-1.5">
+            <Label htmlFor="qr-fg" className="text-xs text-muted-foreground">
+              Foreground
+            </Label>
+            <Input
+              id="qr-fg"
+              type="color"
+              className="h-10 cursor-pointer p-1"
+              value={cfg.fgColor}
+              onChange={(e) => setCfg({ ...cfg, fgColor: e.target.value })}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="qr-bg" className="text-xs text-muted-foreground">
+              Background
+            </Label>
+            <Input
+              id="qr-bg"
+              type="color"
+              className="h-10 cursor-pointer p-1"
+              value={cfg.bgColor}
+              onChange={(e) => setCfg({ ...cfg, bgColor: e.target.value })}
+            />
+          </div>
         </div>
-        <Button disabled={pending}
-          onClick={() => start(async () => {
-            const r = await saveQrConfig(linkId, cfg);
-            if (r.ok) toast.success("QR saved"); else toast.error(r.error);
-          })}>Save</Button>
+        <div className="grid gap-1.5">
+          <Label className="text-xs text-muted-foreground">Dot style</Label>
+          <div className="grid grid-cols-3 gap-2">
+            {(["square", "rounded", "dots"] as const).map((style) => (
+              <Button
+                key={style}
+                type="button"
+                variant={cfg.dotStyle === style ? "default" : "outline"}
+                size="sm"
+                onClick={() => setCfg({ ...cfg, dotStyle: style })}
+              >
+                {style === "square" ? "Square" : style === "rounded" ? "Rounded" : "Dots"}
+              </Button>
+            ))}
+          </div>
+        </div>
+        {isPro && (
+          <div className="grid gap-1.5">
+            <Label htmlFor="qr-logo" className="text-xs text-muted-foreground">
+              Logo
+            </Label>
+            <Input
+              id="qr-logo"
+              type="file"
+              accept="image/*"
+              onChange={(e) => e.target.files?.[0] && uploadLogo(e.target.files[0])}
+            />
+          </div>
+        )}
+        <div className="grid gap-1.5">
+          <Label className="text-xs text-muted-foreground">Download</Label>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => download("png", 300)}>
+              <Download className="size-3.5" />
+              PNG · 300
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => download("png", 1024)}>
+              <Download className="size-3.5" />
+              PNG · 1024
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => download("svg")}>
+              <Download className="size-3.5" />
+              SVG
+            </Button>
+          </div>
+        </div>
+        <Button
+          disabled={pending}
+          onClick={() =>
+            start(async () => {
+              const r = await saveQrConfig(linkId, cfg);
+              if (r.ok) toast.success("QR saved");
+              else toast.error(r.error);
+            })
+          }
+        >
+          {pending ? "Saving…" : "Save"}
+        </Button>
       </div>
     </div>
   );
