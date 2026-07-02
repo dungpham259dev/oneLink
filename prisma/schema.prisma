@@ -1,0 +1,137 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Plan {
+  FREE
+  PRO
+}
+
+enum DeviceType {
+  IOS
+  IPADOS
+  ANDROID
+  HUAWEI
+  WINDOWS
+  MACOS
+  OTHER
+}
+
+enum RedirectTarget {
+  MATCHED
+  FALLBACK
+  LANDING
+}
+
+model User {
+  id             String    @id @default(cuid())
+  name           String?
+  email          String    @unique
+  emailVerified  DateTime?
+  image          String?
+  plan           Plan      @default(FREE)
+  planExpiresAt  DateTime?
+  stripeCustomerId String? @unique
+  accounts       Account[]
+  sessions       Session[]
+  links          Link[]
+  subscription   Subscription?
+  createdAt      DateTime  @default(now())
+}
+
+model Account {
+  id                String @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  @@unique([identifier, token])
+}
+
+model Link {
+  id                  String   @id @default(cuid())
+  userId              String
+  slug                String   @unique
+  name                String?
+  iosUrl              String?
+  ipadUrl             String?
+  androidUrl          String?
+  huaweiUrl           String?
+  windowsUrl          String?
+  macUrl              String?
+  fallbackUrl         String?
+  parameterForwarding Boolean  @default(false)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  qrConfig QrConfig?
+  events   AnalyticsEvent[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([userId])
+}
+
+model QrConfig {
+  id          String  @id @default(cuid())
+  linkId      String  @unique
+  fgColor     String  @default("#000000")
+  bgColor     String  @default("#ffffff")
+  gradient    Json?
+  dotStyle    String  @default("square")
+  cornerStyle String  @default("square")
+  logoUrl     String?
+  margin      Int     @default(10)
+  size        Int     @default(300)
+  link Link @relation(fields: [linkId], references: [id], onDelete: Cascade)
+}
+
+model AnalyticsEvent {
+  id           String         @id @default(cuid())
+  linkId       String
+  timestamp    DateTime       @default(now())
+  deviceType   DeviceType
+  os           String?
+  country      String?
+  referrer     String?
+  utmSource    String?
+  utmMedium    String?
+  utmCampaign  String?
+  redirectedTo RedirectTarget
+  link Link @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  @@index([linkId, timestamp])
+}
+
+model Subscription {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  stripeSubscriptionId String   @unique
+  status               String
+  currentPeriodEnd     DateTime
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
