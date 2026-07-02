@@ -1,0 +1,36 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("@/lib/db", () => ({ db: {
+  user: { findFirst: vi.fn(), update: vi.fn() },
+  subscription: { upsert: vi.fn() },
+} }));
+
+import { db } from "@/lib/db";
+import { handleStripeEvent } from "@/lib/webhook-handler";
+
+const asMock = (f: unknown) => f as ReturnType<typeof vi.fn>;
+
+describe("handleStripeEvent", () => {
+  beforeEach(() => vi.clearAllMocks());
+  it("upgrades user to PRO on subscription updated", async () => {
+    asMock(db.user.findFirst).mockResolvedValue({ id: "u1" });
+    asMock(db.user.update).mockResolvedValue({});
+    asMock(db.subscription.upsert).mockResolvedValue({});
+    await handleStripeEvent({
+      type: "customer.subscription.updated",
+      data: { object: { id: "sub_1", customer: "cus_1", status: "active",
+        current_period_end: 1893456000 } },
+    } as never);
+    expect(asMock(db.user.update).mock.calls[0][0].data.plan).toBe("PRO");
+  });
+  it("downgrades to FREE on subscription deleted", async () => {
+    asMock(db.user.findFirst).mockResolvedValue({ id: "u1" });
+    asMock(db.user.update).mockResolvedValue({});
+    await handleStripeEvent({
+      type: "customer.subscription.deleted",
+      data: { object: { id: "sub_1", customer: "cus_1", status: "canceled",
+        current_period_end: 1893456000 } },
+    } as never);
+    expect(asMock(db.user.update).mock.calls[0][0].data.plan).toBe("FREE");
+  });
+});
