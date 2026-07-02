@@ -32,4 +32,31 @@ describe("resolveDestination", () => {
     const r = resolveDestination({ ...base, parameterForwarding: true }, "IOS", "utm_source=fb");
     expect(r.url).toBe("https://apps.apple.com/x?utm_source=fb");
   });
+  it("huawei falls back to androidUrl when huaweiUrl empty", () => {
+    const r = resolveDestination(base, "HUAWEI", "");
+    expect(r.url).toBe("https://play.google.com/y");
+    expect(r.target).toBe("MATCHED");
+  });
+  it("returns androidUrl for ANDROID device", () => {
+    const r = resolveDestination(base, "ANDROID", "");
+    expect(r.url).toBe("https://play.google.com/y");
+    expect(r.target).toBe("MATCHED");
+  });
+  it("returns null for MACOS device when macUrl unset", () => {
+    const r = resolveDestination(base, "MACOS", "");
+    expect(r.url).toBe("https://example.com");
+    expect(r.target).toBe("FALLBACK");
+  });
+  it("appends query with & when fallback url already has a query string", () => {
+    const r = resolveDestination(
+      { ...base, iosUrl: null, androidUrl: null, fallbackUrl: "https://example.com?x=1", parameterForwarding: true },
+      "IOS",
+      "utm_source=fb"
+    );
+    expect(r.url).toBe("https://example.com?x=1&utm_source=fb");
+  });
+  it("does not append empty query string", () => {
+    const r = resolveDestination({ ...base, parameterForwarding: true }, "IOS", "");
+    expect(r.url).toBe("https://apps.apple.com/x");
+  });
 });
