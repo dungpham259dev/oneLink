@@ -18,7 +18,9 @@ export async function createCheckoutSession(): Promise<{ url: string } | { error
   const customer = await ensureCustomer(user);
   const session = await stripe.checkout.sessions.create({
     customer, mode: "subscription",
+    client_reference_id: user.id,
     line_items: [{ price: process.env.STRIPE_PRO_PRICE_ID!, quantity: 1 }],
+    subscription_data: { metadata: { userId: user.id } },
     success_url: `${APP}/app/billing?success=1`,
     cancel_url: `${APP}/app/billing?canceled=1`,
   });

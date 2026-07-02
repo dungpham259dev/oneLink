@@ -15,6 +15,12 @@ export async function POST(req: NextRequest) {
     console.error("Webhook signature verification failed", err);
     return new NextResponse("Invalid signature", { status: 400 });
   }
-  await handleStripeEvent(event);
+  try {
+    await handleStripeEvent(event);
+  } catch (err) {
+    console.error(`Webhook handler failed for event ${event.type} (${event.id})`, err);
+    // Return 500 so Stripe retries instead of silently dropping the update.
+    return new NextResponse("Handler error", { status: 500 });
+  }
   return NextResponse.json({ received: true });
 }
