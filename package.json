@@ -44,5 +44,8 @@
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.9"
+  },
+  "optionalDependencies": {
+    "@rolldown/binding-darwin-arm64": "1.1.4"
   }
 }
