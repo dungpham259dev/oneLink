@@ -49,13 +49,18 @@ export async function createLink(input: LinkInput): Promise<Result> {
     slug = await uniqueSlug();
   }
 
-  if (!PLAN_LIMITS[user.plan].desktopLinks) { data.windowsUrl = undefined; data.macUrl = undefined; }
-  if (!PLAN_LIMITS[user.plan].parameterForwarding) data.parameterForwarding = false;
+  const limits = PLAN_LIMITS[user.plan];
+  const sanitized = {
+    ...data,
+    windowsUrl: limits.desktopLinks ? data.windowsUrl : undefined,
+    macUrl: limits.desktopLinks ? data.macUrl : undefined,
+    parameterForwarding: limits.parameterForwarding ? data.parameterForwarding : false,
+  };
 
   const link = await db.link.create({ data: {
-    userId: user.id, slug, name: data.name, iosUrl: data.iosUrl, ipadUrl: data.ipadUrl,
-    androidUrl: data.androidUrl, huaweiUrl: data.huaweiUrl, windowsUrl: data.windowsUrl,
-    macUrl: data.macUrl, fallbackUrl: data.fallbackUrl, parameterForwarding: data.parameterForwarding,
+    userId: user.id, slug, name: sanitized.name, iosUrl: sanitized.iosUrl, ipadUrl: sanitized.ipadUrl,
+    androidUrl: sanitized.androidUrl, huaweiUrl: sanitized.huaweiUrl, windowsUrl: sanitized.windowsUrl,
+    macUrl: sanitized.macUrl, fallbackUrl: sanitized.fallbackUrl, parameterForwarding: sanitized.parameterForwarding,
   }});
   await putLinkCache(toLinkConfig(link));
   revalidatePath("/app/links");
@@ -70,13 +75,20 @@ export async function updateLink(id: string, input: LinkInput): Promise<Result> 
   const parsed = linkInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
   const data = parsed.data;
-  if (!PLAN_LIMITS[user.plan].desktopLinks) { data.windowsUrl = undefined; data.macUrl = undefined; }
-  if (!PLAN_LIMITS[user.plan].parameterForwarding) data.parameterForwarding = false;
+  if (data.customSlug) return { ok: false, error: "Slug cannot be changed after creation" };
+
+  const limits = PLAN_LIMITS[user.plan];
+  const sanitized = {
+    ...data,
+    windowsUrl: limits.desktopLinks ? data.windowsUrl : undefined,
+    macUrl: limits.desktopLinks ? data.macUrl : undefined,
+    parameterForwarding: limits.parameterForwarding ? data.parameterForwarding : false,
+  };
 
   const link = await db.link.update({ where: { id }, data: {
-    name: data.name, iosUrl: data.iosUrl, ipadUrl: data.ipadUrl, androidUrl: data.androidUrl,
-    huaweiUrl: data.huaweiUrl, windowsUrl: data.windowsUrl, macUrl: data.macUrl,
-    fallbackUrl: data.fallbackUrl, parameterForwarding: data.parameterForwarding,
+    name: sanitized.name, iosUrl: sanitized.iosUrl, ipadUrl: sanitized.ipadUrl, androidUrl: sanitized.androidUrl,
+    huaweiUrl: sanitized.huaweiUrl, windowsUrl: sanitized.windowsUrl, macUrl: sanitized.macUrl,
+    fallbackUrl: sanitized.fallbackUrl, parameterForwarding: sanitized.parameterForwarding,
   }});
   await putLinkCache(toLinkConfig(link));
   revalidatePath("/app/links");
