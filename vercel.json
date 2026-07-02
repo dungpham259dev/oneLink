@@ -1,1 +1,1 @@
-{ "crons": [ { "path": "/api/cron/flush-analytics", "schedule": "*/5 * * * *" } ] }
+{ "crons": [ { "path": "/api/cron/flush-analytics", "schedule": "0 3 * * *" } ] }
