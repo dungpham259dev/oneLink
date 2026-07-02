@@ -4,6 +4,11 @@ import path from "node:path";
 
 export default defineConfig({
   plugins: [react()],
-  test: { environment: "jsdom", setupFiles: ["./vitest.setup.ts"], globals: true },
+  test: {
+    environment: "jsdom",
+    setupFiles: ["./vitest.setup.ts"],
+    globals: true,
+    exclude: ["node_modules", "e2e", ".next"],
+  },
   resolve: { alias: { "@": path.resolve(__dirname, ".") } },
 });
