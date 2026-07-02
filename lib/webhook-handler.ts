@@ -72,6 +72,40 @@ async function retrieveSubscription(subscriptionId: string): Promise<Stripe.Subs
   return stripe.subscriptions.retrieve(subscriptionId);
 }
 
+/**
+ * Extract the subscription id from an invoice. In Basil+ `invoice.subscription`
+ * was removed; it now lives on parent.subscription_details or on line items.
+ */
+function subscriptionIdFromInvoice(invoice: Stripe.Invoice & { subscription?: string | { id: string } }): string | null {
+  const direct = invoice.subscription;
+  if (direct) return typeof direct === "string" ? direct : direct.id;
+
+  const inv = invoice as unknown as {
+    parent?: { subscription_details?: { subscription?: string | { id: string } } };
+    lines?: { data?: Array<{ parent?: { subscription_item_details?: { subscription?: string | { id: string } } } }> };
+  };
+  const fromParent = inv.parent?.subscription_details?.subscription;
+  if (fromParent) return typeof fromParent === "string" ? fromParent : fromParent.id;
+
+  const fromLine = inv.lines?.data?.[0]?.parent?.subscription_item_details?.subscription;
+  if (fromLine) return typeof fromLine === "string" ? fromLine : fromLine.id;
+
+  return null;
+}
+
+async function syncFromInvoice(
+  invoice: Stripe.Invoice & { subscription?: string | { id: string } },
+): Promise<void> {
+  const subId = subscriptionIdFromInvoice(invoice);
+  if (!subId) {
+    console.error("Stripe webhook: invoice has no subscription", invoice.id);
+    return;
+  }
+  const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id ?? "";
+  const sub = await retrieveSubscription(subId);
+  await activateProFromSubscription(customerId, sub);
+}
+
 export async function handleStripeEvent(event: Stripe.Event): Promise<void> {
   switch (event.type) {
     case "checkout.session.completed": {
@@ -95,15 +129,25 @@ export async function handleStripeEvent(event: Stripe.Event): Promise<void> {
       break;
     }
 
-    case "invoice.paid": {
+    case "invoice.paid":
+    case "invoice.payment_succeeded": {
       // Renewals arrive as invoices; re-sync from the linked subscription.
       const invoice = event.data.object as Stripe.Invoice & { subscription?: string | { id: string } };
-      const subRef = invoice.subscription;
-      if (!subRef) break;
-      const subId = typeof subRef === "string" ? subRef : subRef.id;
-      const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id ?? "";
-      const sub = await retrieveSubscription(subId);
-      await activateProFromSubscription(customerId, sub);
+      await syncFromInvoice(invoice);
+      break;
+    }
+
+    case "invoice_payment.paid": {
+      // Basil+ splits payment into a separate `invoice_payment` object that
+      // only references the invoice id. Retrieve the invoice, then its sub.
+      const payment = event.data.object as { invoice?: string | { id: string } };
+      const invRef = payment.invoice;
+      if (!invRef) break;
+      const invoiceId = typeof invRef === "string" ? invRef : invRef.id;
+      const invoice = (await stripe.invoices.retrieve(invoiceId)) as Stripe.Invoice & {
+        subscription?: string | { id: string };
+      };
+      await syncFromInvoice(invoice);
       break;
     }
 
