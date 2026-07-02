@@ -34,6 +34,23 @@ describe("flushAnalytics", () => {
     const r = await flushAnalytics(100);
     expect(r.inserted).toBe(0);
   });
+  it("inserts only the matched event from a mixed batch", async () => {
+    asMock(drainEvents).mockResolvedValue([
+      { linkId: "abc", deviceType: "IOS", os: "iOS", country: "US", referrer: null,
+        utmSource: null, utmMedium: null, utmCampaign: null, redirectedTo: "MATCHED",
+        timestamp: "2026-07-02T00:00:00.000Z" },
+      { linkId: "gone", deviceType: "ANDROID", os: "Android", country: null, referrer: null,
+        utmSource: null, utmMedium: null, utmCampaign: null, redirectedTo: "MATCHED",
+        timestamp: "2026-07-02T00:00:00.000Z" },
+    ]);
+    asMock(db.link.findMany).mockResolvedValue([{ id: "link1", slug: "abc" }]);
+    asMock(db.analyticsEvent.createMany).mockResolvedValue({ count: 1 });
+    const r = await flushAnalytics(100);
+    expect(r.inserted).toBe(1);
+    const data = asMock(db.analyticsEvent.createMany).mock.calls[0][0].data;
+    expect(data).toHaveLength(1);
+    expect(data[0].linkId).toBe("link1");
+  });
   it("returns zero when queue empty", async () => {
     asMock(drainEvents).mockResolvedValue([]);
     expect((await flushAnalytics(100)).inserted).toBe(0);

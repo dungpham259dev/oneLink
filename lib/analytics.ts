@@ -3,11 +3,11 @@ import { db } from "@/lib/db";
 type Counts = Record<string, number>;
 
 async function group(linkId: string, from: Date, to: Date, field: "deviceType" | "country" | "referrer" | "redirectedTo"): Promise<Counts> {
-  const rows = await (db.analyticsEvent.groupBy as any)({
-    by: [field],
+  const rows = (await db.analyticsEvent.groupBy({
+    by: [field] as never,
     where: { linkId, timestamp: { gte: from, lte: to } },
     _count: { _all: true },
-  }) as Array<Record<string, unknown> & { _count: { _all: number } }>;
+  } as never)) as unknown as Array<Record<string, unknown> & { _count: { _all: number } }>;
   const out: Counts = {};
   for (const row of rows) out[String(row[field] ?? "unknown")] = row._count._all;
   return out;
