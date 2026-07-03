@@ -31,10 +31,22 @@ export function QrStudio({ linkId, url, initial, isPro }: {
 
   useEffect(() => { qrRef.current?.update(buildQrOptions(url, cfg)); }, [cfg, url]);
 
-  const download = (ext: "png" | "svg", size?: number) => {
-    if (size) qrRef.current?.update({ ...buildQrOptions(url, cfg), width: size, height: size });
-    qrRef.current?.download({ name: "qr", extension: ext });
-    if (size) qrRef.current?.update(buildQrOptions(url, cfg));
+  const download = async (ext: "png" | "svg", size?: number) => {
+    const qr = qrRef.current;
+    if (!qr) return;
+    try {
+      if (size) {
+        qr.update({ ...buildQrOptions(url, cfg), width: size, height: size });
+      }
+      // download() is async (it must wait for the canvas/logo to finish
+      // rendering). Awaiting it prevents capturing a blank/half-rendered image.
+      await qr.download({ name: "qr", extension: ext });
+    } catch (err) {
+      console.error("QR download failed", err);
+      toast.error("Không tải được mã QR, vui lòng thử lại.");
+    } finally {
+      if (size) qr.update(buildQrOptions(url, cfg));
+    }
   };
 
   const uploadLogo = async (file: File) => {
